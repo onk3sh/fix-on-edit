@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { resolveLinter, shellQuote, looksAbsent, appendToResult, clip } from './resolve'
+import { resolveLinter, shellQuote, looksAbsent, appendToResult, clip, header } from './resolve'
 
 test('config command wins and substitutes {file}, shell-quoted', () => {
   expect(resolveLinter('/a/b.py', { command: 'mylint {file} --x' }))
@@ -43,4 +43,23 @@ test('clip truncates long output and marks the cut', () => {
   const out = clip(long)
   expect(out.length).toBeLessThan(long.length)
   expect(out).toContain('truncated by fix-on-edit')
+})
+
+test('resolveLinter preserves $ in paths through {file} substitution', () => {
+  expect(resolveLinter("/a/$&x.py", {})).toEqual([`ruff check '/a/$&x.py'`])
+  expect(resolveLinter("/a/$'x.py", {})).toEqual([`ruff check '/a/$'\\''x.py'`])
+})
+
+test('looksAbsent rejects false positives from stdout', () => {
+  expect(looksAbsent({ exitCode: 1, stdout: 'Module not found in src', stderr: '' })).toBe(false)
+})
+
+test('header contains the filename and ends with newline', () => {
+  expect(header('/a/b.ts')).toContain('/a/b.ts')
+  expect(header('/a/b.ts')).toMatch(/\n$/)
+})
+
+test('appendToResult handles null and undefined', () => {
+  expect(appendToResult(null, 'b')).toBe(null)
+  expect(appendToResult(undefined, 'b')).toBe(undefined)
 })

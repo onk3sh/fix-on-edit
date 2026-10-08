@@ -23,8 +23,8 @@ export function shellQuote(s: string): string {
 // Pure: file + options -> ordered shell commands to try (first non-absent wins). [] = run nothing.
 export function resolveLinter(file: string, options: Options): string[] {
   const q = shellQuote(file)
-  const sub = (tpl: string) => tpl.replace(/\{file\}/g, q)
-  const configured = (options.command ?? '').trim()
+  const sub = (tpl: string) => tpl.replace(/\{file\}/g, () => q)
+  const configured = (options?.command ?? '').trim()
   if (configured) return [sub(configured)]
   for (const [re, tpls] of AUTO) if (re.test(file)) return tpls.map(sub)
   return []
@@ -35,8 +35,7 @@ export function resolveLinter(file: string, options: Options): string[] {
 // version-dependent); upgrade to an explicit $.fs.exists / `command -v` probe if it misfires.
 export function looksAbsent(out: RunResult): boolean {
   if (out.exitCode === 127) return true
-  const text = `${out.stdout}\n${out.stderr}`
-  return /could not determine executable to run|command not found|not found in|no such file or directory/i.test(text)
+  return /: command not found|could not determine executable to run/i.test(out.stderr)
 }
 
 export function clip(s: string, max = 4000): string {
