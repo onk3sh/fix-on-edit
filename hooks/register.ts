@@ -22,7 +22,7 @@ export const register: Register = (on, options: Options) => {
         }
         if (looksAbsent(out)) continue // tool not installed -> try the next candidate
         if (out.exitCode === 0) return r // clean -> invisible
-        return appendToResult(r, header(file) + clip(out.stdout || out.stderr)) // issues -> surface
+        return appendToResult(r, header(file) + clip(out.stdout || out.stderr || '')) // issues -> surface
       }
       return r // nothing ran, or every candidate was absent
     })

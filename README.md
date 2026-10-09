@@ -57,3 +57,5 @@ After Claude edits a file:
 4. Claude self-corrects in the same turn.
 
 If any step can't proceed (no linter found, subprocess missing, timeout, etc.), the mod stays silent.
+
+**Note:** a linter that *errors on invocation* (missing config, a file outside its configured root, etc.) exits non-zero, so its error is surfaced like a lint failure. Set an explicit `command` if you need to control exactly what runs.

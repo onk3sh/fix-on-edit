@@ -42,3 +42,10 @@ test('a missing local linter stays silent instead of surfacing tool noise', asyn
   const out = await $.tool.call({ tool: 'Edit', file_path: '/proj/foo.ts' })
   expect(out).toEqual({ result: 'edit applied' })
 })
+
+test('a nonzero exit with undefined output never throws', async ($, on) => {
+  on('tool.call', () => ({ result: 'edit applied' }))
+  on('process.run', () => ({ value: { exitCode: 1 } })) // build returns no stdout/stderr fields
+  const out = await $.tool.call({ tool: 'Edit', file_path: '/proj/foo.ts' })
+  expect(JSON.stringify(out)).toContain('did not pass lint')
+})
