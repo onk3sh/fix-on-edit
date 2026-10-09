@@ -14,7 +14,7 @@ Requires Claude Code **2.1.287+**.
 
 ## Configuration
 
-Two optional user-config fields in `.claude/settings.local.json`:
+Two optional user-config fields (set them when you install the plugin):
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
@@ -23,27 +23,27 @@ Two optional user-config fields in `.claude/settings.local.json`:
 
 ### Auto-detect table
 
-If no `command` is set, the mod detects the linter by file extension (first candidate whose binary is on PATH wins):
+If no `command` is set, the mod detects the linter by file extension (first available candidate wins — npx tools must be installed in the project; `ruff`/`gofmt` must be on `PATH`):
 
 | Extensions | Candidates (in order) |
 |---|---|
 | `.ts .tsx .js .jsx .mjs .cjs` | `npx --no-install eslint {file}`, then `npx --no-install prettier --check {file}` |
 | `.py` | `ruff check {file}` |
-| `.go` | `gofmt -l {file}` |
+| `.go` | `gofmt` |
 
-Node tools use `npx --no-install` to run project-local binaries without fetching from the network. Other extensions are not auto-detected.
+Node tools use `npx --no-install` to run project-local binaries without fetching from the network. Other extensions are not auto-detected. For Go, the file is flagged when `gofmt` reports it isn't formatted.
 
 ## Guarantees
 
 - **Invisible on success:** if the linter exits cleanly (code 0), the result is unchanged.
-- **Never breaks an edit:** if the linter is missing, times out, or crashes, the edit succeeds and the mod returns silently.
+- **Never breaks an edit:** if the linter can't be spawned or times out, the edit still succeeds and the mod stays silent. (A linter that runs and reports problems surfaces them — that is the point.)
 - **Never denies:** always returns the original result, never uses `deny`.
-- **Never modifies the file:** only observes; the file is whatever `Edit` wrote.
+- **Never modifies the file itself:** the mod only observes. A `command` you configure with `--fix`/`--write` can change the file — that is your choice, not the mod's.
 
 ## Footprint
 
-- One `tool.call` hook registered for `Edit`, `Write`, and `MultiEdit`.
-- One `$.process.run` call per edit (only if a linter is resolved).
+- A single `tool.call` handler, registered for `Edit`, `Write`, and `MultiEdit`.
+- One `$.process.run` call per candidate linter — one for most languages, at most two for JS/TS (eslint, then prettier only if eslint isn't installed).
 - No network access; no file I/O.
 - Subprocess timeout is configurable.
 

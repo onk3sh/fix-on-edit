@@ -19,7 +19,7 @@ test('auto-detect yields eslint then prettier for the JS/TS family', () => {
 
 test('auto-detect maps py and go and skips unknown extensions', () => {
   expect(resolveLinter('/a/x.py', {})).toEqual([`ruff check '/a/x.py'`])
-  expect(resolveLinter('/a/x.go', {})).toEqual([`gofmt -l '/a/x.go'`])
+  expect(resolveLinter('/a/x.go', {})).toEqual([`[ -z "$(gofmt -l '/a/x.go')" ] || { gofmt -d '/a/x.go'; exit 1; }`])
   expect(resolveLinter('/a/notes.md', {})).toEqual([])
 })
 

@@ -13,7 +13,8 @@ export interface RunResult {
 const AUTO: Array<[RegExp, string[]]> = [
   [/\.(ts|tsx|js|jsx|mjs|cjs)$/i, ['npx --no-install eslint {file}', 'npx --no-install prettier --check {file}']],
   [/\.py$/i, ['ruff check {file}']],
-  [/\.go$/i, ['gofmt -l {file}']],
+  // gofmt -l exits 0 even when it lists unformatted files; wrap so an unformatted file exits nonzero and prints the diff.
+  [/\.go$/i, ['[ -z "$(gofmt -l {file})" ] || { gofmt -d {file}; exit 1; }']],
 ]
 
 export function shellQuote(s: string): string {
