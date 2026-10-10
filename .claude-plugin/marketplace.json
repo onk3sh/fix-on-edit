@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "fix-on-edit",
+  "description": "Runs your project's linter on each file Claude edits and feeds any errors back so Claude fixes them in the same turn.",
+  "owner": {
+    "name": "onk3sh",
+    "url": "https://github.com/onk3sh"
+  },
+  "plugins": [
+    {
+      "name": "fix-on-edit",
+      "source": "./",
+      "description": "Runs your project's linter on each file Claude edits and feeds any errors back so Claude fixes them in the same turn.",
+      "category": "productivity",
+      "tags": ["lint", "quality", "hooks", "claude-code-mod"]
+    }
+  ]
+}
