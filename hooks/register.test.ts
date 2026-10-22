@@ -49,3 +49,24 @@ test('a nonzero exit with undefined output never throws', async ($, on) => {
   const out = await $.tool.call({ tool: 'Edit', file_path: '/proj/foo.ts' })
   expect(JSON.stringify(out)).toContain('did not pass lint')
 })
+
+test('surfaces only the lint errors on lines the edit changed', async ($, on) => {
+  on('tool.call', () => ({ result: 'edit applied' }))
+  on('process.run', (_$: unknown, e: { argv: readonly string[] }) => {
+    if (e.argv[0] === 'git') return { value: { exitCode: 0, stdout: '@@ -8,0 +9,1 @@\n+const x = 1', stderr: '' } }
+    return { value: { exitCode: 1, stdout: '/proj/foo.ts\n  3:1  error  Pre-existing A\n  9:5  error  From the edit B', stderr: '' } }
+  })
+  const out = await $.tool.call({ tool: 'Edit', file_path: '/proj/foo.ts' })
+  expect(JSON.stringify(out)).toContain('From the edit B')
+  expect(JSON.stringify(out)).not.toContain('Pre-existing A')
+})
+
+test('stays silent when the edit added no errors but the file has them elsewhere', async ($, on) => {
+  on('tool.call', () => ({ result: 'edit applied' }))
+  on('process.run', (_$: unknown, e: { argv: readonly string[] }) => {
+    if (e.argv[0] === 'git') return { value: { exitCode: 0, stdout: '@@ -8,0 +9,1 @@\n+const x = 1', stderr: '' } }
+    return { value: { exitCode: 1, stdout: '  3:1  error  Pre-existing elsewhere', stderr: '' } }
+  })
+  const out = await $.tool.call({ tool: 'Edit', file_path: '/proj/foo.ts' })
+  expect(out).toEqual({ result: 'edit applied' })
+})

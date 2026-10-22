@@ -1,7 +1,7 @@
 {
   "name": "fix-on-edit",
-  "version": "0.1.0",
-  "description": "Runs your project's linter on each file Claude edits and feeds any errors back so Claude fixes them in the same turn.",
+  "version": "0.2.0",
+  "description": "Runs your project's linter on each file Claude edits and feeds back only the errors on the lines Claude changed, so Claude fixes them in the same turn.",
   "author": { "name": "onk3sh" },
   "homepage": "https://github.com/onk3sh/fix-on-edit",
   "keywords": ["claude-code-mod", "lint", "quality"],
