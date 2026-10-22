@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { resolveLinter, shellQuote, looksAbsent, appendToResult, clip, header } from './resolve'
+import { resolveLinter, shellQuote, looksAbsent, appendToResult, clip, header, parseChangedLines, extractLineNo, scopeOutput } from './resolve'
 
 test('config command wins and substitutes {file}, shell-quoted', () => {
   expect(resolveLinter('/a/b.py', { command: 'mylint {file} --x' }))
@@ -62,4 +62,40 @@ test('header contains the filename and ends with newline', () => {
 test('appendToResult handles null and undefined', () => {
   expect(appendToResult(null, 'b')).toBe(null)
   expect(appendToResult(undefined, 'b')).toBe(undefined)
+})
+
+test('parseChangedLines expands each @@ +a,b hunk into its line set', () => {
+  const diff = [
+    'diff --git a/x.ts b/x.ts',
+    '@@ -1 +1 @@',          // single line, no count -> {1}
+    '@@ -10,0 +11,3 @@',    // 3 new lines -> {11,12,13}
+    '@@ -20,2 +24,0 @@',    // pure deletion -> nothing
+  ].join('\n')
+  expect([...parseChangedLines(diff)].sort((a, b) => a - b)).toEqual([1, 11, 12, 13])
+})
+
+test('extractLineNo reads eslint, ruff and tsc shapes, null otherwise', () => {
+  expect(extractLineNo('  12:5  error  no-unused-vars')).toBe(12)
+  expect(extractLineNo('/a/x.py:7:3: F401 unused import')).toBe(7)
+  expect(extractLineNo('/a/x.ts(9,14): error TS2304')).toBe(9)
+  expect(extractLineNo('[warn] src/foo.ts')).toBe(null)
+})
+
+test('scopeOutput keeps only diagnostics on changed lines', () => {
+  const raw = ['/a/x.ts', '  3:1  error  A', '  12:5  error  B', '  40:2  error  C'].join('\n')
+  const r = scopeOutput(raw, new Set([12, 13]))
+  expect(r.show).toBe(true)
+  expect(r.text).toBe('  12:5  error  B')
+})
+
+test('scopeOutput stays silent when no diagnostic lands on a changed line', () => {
+  const raw = ['  3:1  error  A', '  40:2  error  C'].join('\n')
+  expect(scopeOutput(raw, new Set([12])).show).toBe(false)
+})
+
+test('scopeOutput shows file-level output whole when nothing is line-numbered', () => {
+  const raw = 'Checking formatting...\n[warn] src/foo.ts\n[warn] Code style issues found.'
+  const r = scopeOutput(raw, new Set([12]))
+  expect(r.show).toBe(true)
+  expect(r.text).toBe(raw)
 })

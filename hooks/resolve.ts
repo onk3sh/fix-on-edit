@@ -47,6 +47,37 @@ export function header(file: string): string {
   return `fix-on-edit: ${file} did not pass lint:\n`
 }
 
+// Pure: the set of new-file line numbers a `git diff -U0` touched (the +a,b of each @@ hunk).
+export function parseChangedLines(diff: string): Set<number> {
+  const set = new Set<number>()
+  for (const m of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = parseInt(m[1], 10)
+    const count = m[2] === undefined ? 1 : parseInt(m[2], 10)
+    for (let i = 0; i < count; i++) set.add(start + i)
+  }
+  return set
+}
+
+// Pure: the 1-based line a linter output line points at, or null when it names none.
+// Covers eslint stylish ("  12:5  error"), ruff/gcc ("file:12:5:"), and tsc ("file(12,5)").
+export function extractLineNo(line: string): number | null {
+  const m = line.match(/^\s*(\d+):\d+/) || line.match(/:(\d+):\d+/) || line.match(/:(\d+):/) || line.match(/\((\d+),\d+\)/)
+  return m ? parseInt(m[1], 10) : null
+}
+
+// Pure: keep only the diagnostics on lines the edit changed.
+// - no line-numbered output at all (prettier, gofmt -d): can't scope -> show it whole.
+// - some numbered, none on a changed line: the edit introduced nothing here -> stay silent.
+// - otherwise: show just the numbered lines that land on a changed line.
+export function scopeOutput(raw: string, changed: Set<number>): { show: boolean; text: string } {
+  const lines = raw.split('\n')
+  const numbered = lines.filter(l => extractLineNo(l) !== null)
+  if (numbered.length === 0) return { show: true, text: raw }
+  const inRange = numbered.filter(l => changed.has(extractLineNo(l)!))
+  if (inRange.length === 0) return { show: false, text: '' }
+  return { show: true, text: inRange.join('\n') }
+}
+
 // Pure: append text to whatever shape the tool result takes; unknown shape -> unchanged, never throws.
 export function appendToResult(r: unknown, text: string): unknown {
   if (!r || typeof r !== 'object') return r

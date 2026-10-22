@@ -1,5 +1,19 @@
-import type { Register } from 'claude-code'
-import { resolveLinter, looksAbsent, appendToResult, clip, header, type Options } from './resolve'
+import type { Register, EngineInterface } from 'claude-code'
+import { resolveLinter, looksAbsent, appendToResult, clip, header, parseChangedLines, scopeOutput, type Options } from './resolve'
+
+// The new-file lines the just-made edit touched, via `git diff -U0`.
+// null = can't tell (not a git repo, untracked/new file, or git failed) -> caller shows the whole report.
+async function changedLines($: EngineInterface, file: string, timeoutMs: number): Promise<Set<number> | null> {
+  const dir = file.slice(0, file.lastIndexOf('/')) || '.'
+  try {
+    const d = await $.process.run(['git', '-C', dir, 'diff', '-U0', '--no-color', '--', file], { timeoutMs })
+    if (d.exitCode !== 0) return null // not a git repo -> git exits nonzero
+    const set = parseChangedLines(d.stdout)
+    return set.size ? set : null // empty: untracked new file or no diff -> don't scope
+  } catch {
+    return null
+  }
+}
 
 const EDIT_TOOLS = ['Edit', 'Write', 'MultiEdit'] as const
 
@@ -22,7 +36,12 @@ export const register: Register = (on, options: Options) => {
         }
         if (looksAbsent(out)) continue // tool not installed -> try the next candidate
         if (out.exitCode === 0) return r // clean -> invisible
-        return appendToResult(r, header(file) + clip(out.stdout || out.stderr || '')) // issues -> surface
+        const raw = out.stdout || out.stderr || ''
+        const changed = await changedLines($, file, timeoutMs)
+        if (!changed) return appendToResult(r, header(file) + clip(raw)) // can't scope -> whole report
+        const scoped = scopeOutput(raw, changed)
+        if (!scoped.show) return r // the edit introduced no issues on its own lines -> invisible
+        return appendToResult(r, header(file) + clip(scoped.text)) // only the edit's own issues
       }
       return r // nothing ran, or every candidate was absent
     })
